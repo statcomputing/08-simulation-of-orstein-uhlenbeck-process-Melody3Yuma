@@ -1,0 +1,158 @@
+---
+title: "HW8"
+output: pdf_document
+---
+
+# Exercise 5.3.3
+
++ Show that for $t>0$ and $\Delta >0$,
+
+\begin{align*}
+r(t + \Delta) = e^{-\alpha\Delta}r(t) + b(1 - e^{-\alpha\Delta}) + \frac{\sigma}{2\alpha}\sqrt{1-e^{-2\alpha\Delta}}Z
+\end{align*}
+
+Let $V = e^{\alpha t}(r(t) - b)$, then we will have $\frac{\partial V}{\partial t} = \alpha e^{\alpha t}(r(t) - b)$, $\frac{\partial V}{\partial r} = e^{\alpha t}$ and $\frac{\partial^2 V}{\partial r^2} = 0$.
+Therefore, 
+
+\begin{align*}
+dV &= \frac{\partial V}{\partial t}dt + \frac{\partial V}{\partial r}dr + \frac{1}{2}\frac{\partial^2 V}{\partial r^2}dr \\
+&= \alpha e^{\alpha t} (r(t) - b)dt + e^{\alpha t}dr \\
+&= \alpha e^{\alpha t} (r(t) - b)dt + e^{\alpha t}(\alpha (b-r(t))dt + \sigma d\omega(u)) \\
+&= \alpha e^{\alpha t} (r(t) - b)dt + \alpha e^{\alpha t} (b- r(t))dt + \sigma e^{\alpha t} d\omega(u) \\
+&= \sigma e^{\alpha t} d\omega(u) 
+\end{align*}
+
+We can then calculate 
+
+\begin{align*}
+\int_{t}^{T} dV = \int_{t}^{T} \sigma e^{\alpha t} d\omega(u)
+\end{align*}
+
+and get
+
+\begin{align*}
+V(T) - V(t) = \int_{t}^{T} \sigma e^{\alpha t} d\omega(u)
+\end{align*}
+
+Plug in $V = e^{\alpha t}(r(t) - b)$, we will have 
+
+\begin{align*}
+r(t + \Delta) = e^{-\alpha\Delta}r(t) + b(1 - e^{-\alpha\Delta}) + \frac{\sigma}{2\alpha}\sqrt{1-e^{-2\alpha\Delta}}Z
+\end{align*}
+
++ Use the transition distribution from the last part to implement a random walk construction for the process on time interval $[0, T]$. Your code should take $\sigma$, $\alpha$, $b$, the interval value $r(0)$, $T$, and the time step $\Delta$ of the random walk as input arguments. For $r(0)=1$, $T=500$, and $\Delta=1/500$, plot a sample path for each combination of the following values. 
+$\alpha \in \{0.1, 1, 5\}$, $\sigma \in \{0.1, 0.2, 0.5 \}$, $b \in \{-5, 5 \}$. Comment on how the behavior of $r(t)$ depends on $\alpha$ and $\sigma$. 
+
+
+From below figures, we can conclude that when $\sigma$ and $b$ hold, the larger the $\alpha$, the more drift that $r(t)$ will occur; when $\alpha$ and $b$ hold, the larger the $\sigma$, the larger volitidy $r(t)$ will have. 
+```{r, message=FALSE, fig.width=8, fig.height=4}
+
+rt <- function(alpha, sigma, b, initval){
+  r0 <- initval[1]
+  BigT <- initval[2]
+  delta <- initval[3]
+  n <- BigT
+  #i <- seq(from=0, to=BigT, length.out = n)
+  z <- rnorm(n, mean = 0, sd = 1)
+  y <- c(r0)
+  
+  for(i in 2:n){
+    term1 <- exp(-alpha*delta)
+    term2 <- b*(1 - term1)
+    term3 <- sigma/alpha/2*sqrt(1- exp(-2*alpha*delta))*z[i-1]
+    y[i] <- term1*y[i-1] + term2 + term3
+  }
+
+  return(y)
+}
+
+set.seed(1029)
+
+alpha.vec <- c(0.1, 1, 5)
+sigma.vec <- c(0.1, 0.2, 0.5)
+b.vec <- c(-5, 5)
+
+y.vec <- NULL
+for(i in 1:length(b.vec)){
+  d <- b.vec[i]
+  for(j in 1: length(sigma.vec)){
+    b <- sigma.vec[j]
+    for(k in 1: length(alpha.vec)){
+      a <- alpha.vec[k]
+      y <- rt(a, b, k, c(1, 500, 1/500))
+      ts.plot(y, ylab='r(t)', main = paste(paste(paste('alpha, sigma, b=', a, sep = ''),b, sep=','),
+                                           d, sep=','))
+    }
+  }
+  
+}
+
+```
+
+
++ Use the E-M method (or the Euler method) to approximate a simulation from the process. Specifically, partition the time interval into a grid with subintervals of equal length $\delta>0$ for a small $\delta$; approximate $r(t+\delta)$ by a normal random variable with mean $r(t) + \alpha(b- r(t))\delta$ and standard deviation $\sigma \delta$. Write a function to implement this approximation with $\delta$ as one of the arguments. 
+
+```{r,  message=FALSE, fig.width=8, fig.height=4}
+approx <- function(alpha, sigma, b,delta, r0){
+
+  n <- 1/delta
+  y <- c(r0)
+
+  if(n == 1){
+    m <- r0 + alpha*(b- r0)*delta
+    s <- sigma*delta
+    y <- rnorm(1, mean=m, sd=s)
+  }
+
+  if(n >= 2){
+    for(i in 2:n){
+      m <- y[i-1] + alpha*(b- y[i-1])*delta
+      s <- sigma*delta
+      y[i] <- rnorm(1, mean=m, sd=s)
+    }
+  }
+
+  return(y)
+}
+
+
+B <- 1000
+delta.vec <- c(1, 0.5, 0.1, 0.01)
+
+for(j in 1:4){
+  y.vec <- NULL
+  delta <- delta.vec[j]
+  n <- 1/delta
+  for(i in 1:B){
+    y <- approx(0.1, 0.1, 5, delta, 1)
+    y.vec <- c(y.vec, y[n])
+  }
+  
+  den <- density(y.vec)
+  xfit1 <- den$x
+  yfit1 <- den$y
+  
+  alpha <- 0.1
+  sigma <- 0.1
+  b <- 5
+  z <- rnorm(B, 0, 1)
+  
+  term1 <- exp(-alpha*delta)
+  term2 <- b*(1 - term1)
+  term3 <- sigma/alpha/2*sqrt(1- exp(-2*alpha*delta))*z
+  TrueY <- term1 + term2 + term3
+  
+  den <- density(TrueY)
+  xfit2 <- den$x
+  yfit2 <- den$y
+  
+  hist(y.vec, freq = FALSE, breaks=40, xlab='r(1)',
+       main='Red=Sample Kernel and blue=Thereotical Kernel')
+  lines(xfit1, yfit1, col='red')
+  lines(xfit1, yfit2*mean(yfit1)/mean(yfit2), col='blue')
+  
+}
+
+## Conclusion:
+## When delta decreases, the approximation becomes more accurate in terms of density. 
+```
