@@ -156,3 +156,76 @@ for(j in 1:4){
 ## Conclusion:
 ## When delta decreases, the approximation becomes more accurate in terms of density. 
 ```
+
+# Exercise 5.3.4
+
++ What is the distribution of $N(5)$ and its parameters? 
+
+For a nonhomogeneous Poisson process with $\lambda(t)$, the number of arrivals $N(t)$ is a Poisson random variable. 
+
+\begin{align*}
+N(t) \sim Poisson(\int_{0}^{t}\lambda(\alpha)d\alpha)
+\end{align*}
+
+Since the integration of $\lambda(t)=\sqrt(t)+e^{-t}sin(2\pi t)$ has no closed form, we use Mathematica to calculate the integration and obtain that $N(5) \sim Poisson(7.61)$
+
++ Write a function to simulate from this Poisson Process. 
+
+```{r}
+lambda <- function(x) sqrt(x)+exp(-x)*sin(2*pi*x)
+Lambda <- function(t) integrate(f=lambda, lower=0, upper = t)$value
+Ft <- function(x) Lambda(x)/Lambda(Tmax)
+
+Ft_Inverse <- function(u){
+  a=0
+  b=Tmax
+  for(j in 1:20){
+    if(Ft((a+b)/2)<=u){binf=(a+b)/2;bsup=b}
+    if(Ft((a+b)/2)>=u){bsup=(a+b)/2;binf=a}
+    a=binf
+    b=bsup
+  }
+  return((a+b)/2)
+}
+
+
+SimPoisProcess <- function(Tmax){
+  n <- rpois(1,Lambda(Tmax))
+  X0 <- rep(NA,n)
+  
+  for(i in 1:n){
+    X0[i] <- Ft_Inverse(runif(1))
+  }
+  
+  X=sort(X0)
+  return(X)
+}
+
+
+
+```
+
++ Generate events from this Poisson process 1000 times. Pool all the events points together as a sample and plot the kernal density. Overlay $\lambda(t)/\int_{0}^{5}\lambda(s)ds$ with the kernel density.
+
+```{r}
+
+set.seed(1107)
+
+Tmax <- 5
+B <- 1000
+x.vec <- NULL
+for(k in 1:B){
+  X <- SimPoisProcess(Tmax)
+  x.vec <- c(x.vec, X)
+}
+
+
+u=seq(0,max(x.vec),by=.02)
+den <- density(x.vec)
+
+hist(x.vec, ylim=c(0, 0.4), breaks=seq(0, 5.5, by=0.3), freq = FALSE,
+     main='Red=Sample Kernel and blue=Thereotical Kernel', xlab='simulated events')
+lines(den, col='red')
+lines(u,lambda(u)/7.61,lwd=2,col="blue")
+
+```
